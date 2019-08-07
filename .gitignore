@@ -101,4 +101,6 @@ user_sync/resources/*
 !user_sync/resources/README.md
 !user_sync/resources/manual_url
 
+user_sync/sign-sync-config/
+
 .DS_Store
