@@ -1,1 +1,1 @@
-from .connector import PostSyncConnector
+from .post_sync import PostSyncConnector
