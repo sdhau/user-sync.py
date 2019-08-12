@@ -56,7 +56,7 @@ class ConfigLoader(object):
         'test_mode': False,
         'update_user_info': False,
         'user_filter': None,
-        'users': ['all'],
+        'users': ['all']
     }
 
     def __init__(self, args):
@@ -246,6 +246,7 @@ class ConfigLoader(object):
                     options['adobe_group_filter'].append(user_sync.rules.AdobeGroup.create(group))
             else:
                 raise AssertionException('Unknown option "%s" for adobe-users' % adobe_users_action)
+
         return options
 
     def get_logging_config(self):
@@ -380,6 +381,31 @@ class ConfigLoader(object):
                     after_mapping_hook_text = options.get_string('after_mapping_hook', True)
                     if after_mapping_hook_text is None:
                         raise AssertionError("No after_mapping_hook found in extension configuration")
+        return options
+
+    def get_post_sync_options(self):
+        """
+        Read the post_sync options from main_config_file, if there are any modules specified, and return its dictionary of options
+        :return: dict
+        """
+        known_modules = ['sign_sync', 'future_feature']
+        options = {}
+        post_sync_config = self.main_config.get_dict_config('post_sync', True)
+        post_sync_connectors = post_sync_config.get_list_config('connectors', True).value[0]
+        options['post_sync_modules'] = post_sync_config.get_list_config('modules', True).value
+
+        if post_sync_config:
+            for each_module in post_sync_connectors:
+                if each_module not in known_modules:
+                    raise ValueError(
+                        'Skipping unknown post_sync module: ' + each_module + '. Available modules: '
+                        + str(known_modules))
+                module_config_file = post_sync_connectors[each_module]
+                options[each_module] = DictConfig(each_module, self.get_dict_from_sources([module_config_file]))
+            self.logger.info('Post sync modules  ' + str(options['post_sync_modules']) +
+                             ' have been triggered.'                                                                                       
+                             ' Modules will run upon completion of the sync process. '
+                             ' Modules will run in the order provided')
         return options
 
     @staticmethod
@@ -842,6 +868,8 @@ class ConfigFileLoader:
                              '/directory_users/connectors/*': (True, False, None),
                              '/directory_users/extension': (True, False, None),
                              '/logging/file_log_directory': (False, False, "logs"),
+                             '/post_sync/connectors/sign_sync': (False, False, False),
+                             '/post_sync/connectors/future_feature': (False, False, False)
                              }
 
     # like ROOT_CONFIG_PATH_KEYS, but for non-root configuration files

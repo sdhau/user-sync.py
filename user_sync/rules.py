@@ -30,6 +30,8 @@ import user_sync.identity_type
 from collections import defaultdict
 from user_sync.helper import normalize_string, CSVAdapter, JobStats
 
+from user_sync.post_sync.post_sync import PostSyncConnector
+
 GROUP_NAME_DELIMITER = '::'
 PRIMARY_UMAPI_NAME = None
 
@@ -164,11 +166,12 @@ class RuleProcessor(object):
                                                                          username_filter_regex.pattern)
             logger.debug('Initialized with options: %s', options_to_report)
 
-    def run(self, directory_groups, directory_connector, umapi_connectors):
+    def run(self, directory_groups, directory_connector, umapi_connectors, post_sync=None):
         """
         :type directory_groups: dict(str, list(AdobeGroup)
         :type directory_connector: user_sync.connector.directory.DirectoryConnector
         :type umapi_connectors: UmapiConnectors
+        :type post_sync: dict()
         """
         logger = self.logger
 
@@ -196,6 +199,11 @@ class RuleProcessor(object):
         umapi_connectors.execute_actions()
         umapi_stats.log_end(logger)
         self.log_action_summary(umapi_connectors)
+
+        if post_sync:
+            PostSyncConnector(post_sync=post_sync, umapi_info=umapi_info,
+                              umapi_connectors=umapi_connectors, directory_connector=directory_connector,
+                              directory_groups=directory_groups)
 
     def validate_and_log_additional_groups(self, umapi_info):
         """
@@ -232,10 +240,10 @@ class RuleProcessor(object):
             self.action_summary['unchanged_user_count'] = 0
         else:
             self.action_summary['unchanged_user_count'] = (
-                self.action_summary['primary_users_read'] -
-                self.action_summary['excluded_user_count'] -
-                self.action_summary['updated_user_count'] -
-                self.action_summary['primary_strays_processed']
+                    self.action_summary['primary_users_read'] -
+                    self.action_summary['excluded_user_count'] -
+                    self.action_summary['updated_user_count'] -
+                    self.action_summary['primary_strays_processed']
             )
         # find out the number of users created in the primary and secondary umapis
         self.action_summary['primary_users_created'] = len(self.primary_users_created)
@@ -509,7 +517,7 @@ class RuleProcessor(object):
         :type umapi_connectors: UmapiConnectors
         """
         for umapi_connector in umapi_connectors.connectors:
-            umapi_name = None if umapi_connector.name.split('.')[-1] == 'primary'\
+            umapi_name = None if umapi_connector.name.split('.')[-1] == 'primary' \
                 else umapi_connector.name.split('.')[-1]
             if umapi_name == 'umapi':
                 umapi_name = None

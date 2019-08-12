@@ -133,11 +133,6 @@ def main():
               help='if membership in mapped groups differs between the enterprise directory and Adobe sides, '
                    'the group membership is updated on the Adobe side so that the memberships in mapped '
                    'groups match those on the enterprise directory side.')
-@click.option('--sign-sync-config',
-              help='*Temporary* CLI param to specify location of Sign sync config file. '
-                   'Enabling this option also enables the Sign sync config.',
-              type=str,
-              metavar='path-to-file')
 @click.option('--strategy',
               help="whether to fetch and sync the Adobe directory against the customer directory "
                    "or just to push each customer user to the Adobe side.  Default is to fetch and sync.",
@@ -164,9 +159,6 @@ def main():
 def sync(**kwargs):
     """Run User Sync [default command]"""
     run_stats = None
-    sign_config_file = kwargs.get('sign_sync_config')
-    if 'sign_sync_config' in kwargs:
-        del(kwargs['sign_sync_config'])
     try:
         # load the config files and start the file logger
         config_loader = user_sync.config.ConfigLoader(kwargs)
@@ -182,7 +174,7 @@ def sync(**kwargs):
         lock = user_sync.lockfile.ProcessLock(lock_path)
         if lock.set_lock():
             try:
-                begin_work(config_loader, sign_config_file)
+                begin_work(config_loader)
             finally:
                 lock.unlock()
         else:
@@ -306,7 +298,7 @@ def log_parameters(argv, config_loader):
     logger.info('-------------------------------------')
 
 
-def begin_work(config_loader, sign_config_file):
+def begin_work(config_loader):
     """
     :type config_loader: user_sync.config.ConfigLoader
     """
@@ -332,6 +324,8 @@ def begin_work(config_loader, sign_config_file):
         directory_connector_module = __import__(directory_connector_module_name, fromlist=[''])
         directory_connector = user_sync.connector.directory.DirectoryConnector(directory_connector_module)
         directory_connector_options = config_loader.get_directory_connector_options(directory_connector.name)
+
+    post_sync = config_loader.get_post_sync_options()
 
     config_loader.check_unused_config_keys()
 
@@ -360,7 +354,7 @@ def begin_work(config_loader, sign_config_file):
     rule_processor = user_sync.rules.RuleProcessor(rule_config)
     if len(directory_groups) == 0 and rule_processor.will_process_groups():
         logger.warning('No group mapping specified in configuration but --process-groups requested on command line')
-    rule_processor.run(directory_groups, directory_connector, umapi_connectors)
+    rule_processor.run(directory_groups, directory_connector, umapi_connectors, post_sync)
 
     new_adobe_users = set([u.split(',')[1] for u in
                            list(rule_processor.umapi_info_by_name.values())[0].desired_groups_by_user_key.keys()])
