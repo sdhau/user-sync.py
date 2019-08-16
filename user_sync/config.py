@@ -404,7 +404,7 @@ class ConfigLoader(object):
 
         return {
             'modules': post_sync_modules,
-            'extended_attributes': extended_attributes
+            'extended_attributes': set(extended_attributes)
         }
 
     @staticmethod
@@ -559,7 +559,7 @@ class ConfigLoader(object):
         if extension_config:
             after_mapping_hook_text = extension_config.get_string('after_mapping_hook')
             options['after_mapping_hook'] = compile(after_mapping_hook_text, '<per-user after-mapping-hook>', 'exec')
-            options['extended_attributes'] = extension_config.get_list('extended_attributes', True) or []
+            options['extended_attributes'].update(extension_config.get_list('extended_attributes', True))
             # declaration of extended adobe groups: this is needed for two reasons:
             # 1. it allows validation of group names, and matching them to adobe groups
             # 2. it allows removal of adobe groups not assigned by the hook
