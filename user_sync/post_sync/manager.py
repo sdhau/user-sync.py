@@ -1,18 +1,17 @@
 import logging
-from copy import deepcopy
-
 import six
 
 from user_sync.post_sync import connector
 
-_SYNC_DATA_STORE = {}
-
 
 class PostSyncManager:
-    def __init__(self, post_sync_config):
+    def __init__(self, post_sync_config, umapi_users):
         self.post_sync_config = post_sync_config
         self.logger = logging.getLogger("post-sync")
         self.connectors = []
+        self.umapi_users = {}
+        for k, u in six.iteritems(umapi_users):
+            self.umapi_users[k] = self.create_umapi_user(k, u)
 
         for m, c in six.iteritems(self.post_sync_config['modules']):
             self.connectors.append(self.get_connector(m, c))
@@ -31,6 +30,7 @@ class PostSyncManager:
         conn = connector.__CONNECTORS__[name]
         return conn(config)
 
+    def create_umapi_user(self, user_key, user):
     @classmethod
     def update_sync_data(cls, email_id, data_type, add_groups=[], remove_groups=[], **kwargs):
         """
@@ -68,16 +68,16 @@ class PostSyncManager:
     @staticmethod
     def _user_data_template():
         return {
-            'id': '',
+            'id': user_key,
             'umapi_data': {
-                'identity_type': None,
-                'username': None,
-                'domain': None,
-                'email': None,
-                'firstname': None,
-                'lastname': None,
-                'groups': [],
-                'country': None,
+                'identity_type': user.get('identity_type'),
+                'username': user.get('username'),
+                'domain': user.get('domain'),
+                'email': user.get('email'),
+                'firstname': user.get('firstname'),
+                'lastname': user.get('lastname'),
+                'groups': user.get('groups'),
+                'country': user.get('country'),
             },
             'sync_errors': []
         }
