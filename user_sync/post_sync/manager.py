@@ -31,7 +31,8 @@ class PostSyncManager:
         conn = connector.__CONNECTORS__[name]
         return conn(config)
 
-    def update_sync_data(self, email_id, data_type, add_groups=[], remove_groups=[], **kwargs):
+    @classmethod
+    def update_sync_data(cls, email_id, data_type, add_groups=[], remove_groups=[], **kwargs):
         """
         Update (or insert) sync data for a given user
         :param str email_id:
@@ -40,17 +41,16 @@ class PostSyncManager:
         :param str data_type:
         :return:
         """
-        valid_data_types = ['umapi', 'directory']
+        valid_data_types = ['umapi']
         assert data_type in valid_data_types, "valid data_type options: {}".format(valid_data_types)
 
         global _SYNC_DATA_STORE
 
         email_key = email_id.lower()
-
         user_store_data = _SYNC_DATA_STORE.get(email_key)
 
         if user_store_data is None:
-            user_store_data = self._user_data_template()
+            user_store_data = cls._user_data_template()
             user_store_data['id'] = email_id
 
         data_key = '{}_data'.format(data_type)
@@ -65,7 +65,8 @@ class PostSyncManager:
 
         _SYNC_DATA_STORE[email_key] = updated_store_data
 
-    def _user_data_template(self):
+    @staticmethod
+    def _user_data_template():
         return {
             'id': '',
             'umapi_data': {
@@ -77,17 +78,6 @@ class PostSyncManager:
                 'lastname': None,
                 'groups': [],
                 'country': None,
-            },
-            'directory_data': {
-                'identity_type': None,
-                'username': None,
-                'domain': None,
-                'email': None,
-                'firstname': None,
-                'lastname': None,
-                'groups': [],
-                'country': None,
-                'raw_data': {}
             },
             'sync_errors': []
         }
