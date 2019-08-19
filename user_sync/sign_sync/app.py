@@ -5,7 +5,7 @@ import user_sync.sign_sync.connections.umapi_connection
 logger = logging.getLogger('sign_sync')
 
 
-def run(config_loader, user_keys, config_filename):
+def run(config_loader, user_keys, config_filename=False):
     """
     This function will load up all the configuration and execute the sync function
     :param config_loader: ConfigLoader

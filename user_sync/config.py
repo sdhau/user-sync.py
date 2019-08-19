@@ -56,7 +56,7 @@ class ConfigLoader(object):
         'test_mode': False,
         'update_user_info': False,
         'user_filter': None,
-        'users': ['all'],
+        'users': ['all']
     }
 
     def __init__(self, args):
@@ -246,6 +246,7 @@ class ConfigLoader(object):
                     options['adobe_group_filter'].append(user_sync.rules.AdobeGroup.create(group))
             else:
                 raise AssertionException('Unknown option "%s" for adobe-users' % adobe_users_action)
+
         return options
 
     def get_logging_config(self):
@@ -382,6 +383,30 @@ class ConfigLoader(object):
                         raise AssertionError("No after_mapping_hook found in extension configuration")
         return options
 
+    def get_post_sync_options(self):
+        """
+        Read the post_sync options from main_config_file, if there are any modules specified, and return its dictionary of options
+        :return: dict
+        """
+
+        ps_opts = self.main_config.get_dict_config('post_sync', True)
+        if not ps_opts:
+            return
+
+        connectors = ps_opts.get_dict('connectors')
+        module_list = ps_opts.get_list('modules')
+        extended_attributes = ps_opts.get_list('additional_ldap_attributes', True) or []
+
+        try:
+            post_sync_modules = {m: self.get_dict_from_sources([connectors[m]]) for m in module_list}
+        except KeyError as e:
+            raise AssertionException("Error! Post-sync module " + str(e) + " specified without a configuration file...")
+
+        return {
+            'modules': post_sync_modules,
+            'extended_attributes': set(extended_attributes)
+        }
+
     @staticmethod
     def as_list(value):
         if value is None:
@@ -515,7 +540,7 @@ class ConfigLoader(object):
 
         # get the limits
         limits_config = self.main_config.get_dict_config('limits')
-        max_missing = limits_config.get_value('max_adobe_only_users',(int, str),False)
+        max_missing = limits_config.get_value('max_adobe_only_users', (int, str), False)
         percent_pattern = re.compile(r"(\d*(\.\d+)?%)")
         if isinstance(max_missing, str) and percent_pattern.match(max_missing):
             max_missing_percent = float(max_missing.strip('%'))
@@ -534,7 +559,7 @@ class ConfigLoader(object):
         if extension_config:
             after_mapping_hook_text = extension_config.get_string('after_mapping_hook')
             options['after_mapping_hook'] = compile(after_mapping_hook_text, '<per-user after-mapping-hook>', 'exec')
-            options['extended_attributes'] = extension_config.get_list('extended_attributes', True) or []
+            options['extended_attributes'].update(extension_config.get_list('extended_attributes', True))
             # declaration of extended adobe groups: this is needed for two reasons:
             # 1. it allows validation of group names, and matching them to adobe groups
             # 2. it allows removal of adobe groups not assigned by the hook
@@ -842,6 +867,8 @@ class ConfigFileLoader:
                              '/directory_users/connectors/*': (True, False, None),
                              '/directory_users/extension': (True, False, None),
                              '/logging/file_log_directory': (False, False, "logs"),
+        '/post_sync/connectors/sign_sync': (False, False, False),
+        '/post_sync/connectors/future_feature': (False, False, False)
                              }
 
     # like ROOT_CONFIG_PATH_KEYS, but for non-root configuration files
@@ -880,7 +907,7 @@ class ConfigFileLoader:
     # key_path is being searched for in what file in what directory
     filepath = None  # absolute path of file currently being loaded
     filename = None  # filename of file currently being loaded
-    dirpath = None   # directory path of file currently being loaded
+    dirpath = None  # directory path of file currently being loaded
     key_path = None  # the full pathname of the setting key being processed
 
     @classmethod

@@ -48,7 +48,7 @@ class RuleProcessor(object):
         'exclude_identity_types': [],
         'exclude_strays': False,
         'exclude_users': [],
-        'extended_attributes': None,
+        'extended_attributes': set(),
         'process_groups': False,
         'max_adobe_only_users': 200,
         'new_account_type': user_sync.identity_type.ENTERPRISE_IDENTITY_TYPE,
@@ -169,6 +169,7 @@ class RuleProcessor(object):
         :type directory_groups: dict(str, list(AdobeGroup)
         :type directory_connector: user_sync.connector.directory.DirectoryConnector
         :type umapi_connectors: UmapiConnectors
+        :type post_sync: dict()
         """
         logger = self.logger
 
@@ -232,10 +233,10 @@ class RuleProcessor(object):
             self.action_summary['unchanged_user_count'] = 0
         else:
             self.action_summary['unchanged_user_count'] = (
-                self.action_summary['primary_users_read'] -
-                self.action_summary['excluded_user_count'] -
-                self.action_summary['updated_user_count'] -
-                self.action_summary['primary_strays_processed']
+                    self.action_summary['primary_users_read'] -
+                    self.action_summary['excluded_user_count'] -
+                    self.action_summary['updated_user_count'] -
+                    self.action_summary['primary_strays_processed']
             )
         # find out the number of users created in the primary and secondary umapis
         self.action_summary['primary_users_created'] = len(self.primary_users_created)
@@ -509,7 +510,7 @@ class RuleProcessor(object):
         :type umapi_connectors: UmapiConnectors
         """
         for umapi_connector in umapi_connectors.connectors:
-            umapi_name = None if umapi_connector.name.split('.')[-1] == 'primary'\
+            umapi_name = None if umapi_connector.name.split('.')[-1] == 'primary' \
                 else umapi_connector.name.split('.')[-1]
             if umapi_name == 'umapi':
                 umapi_name = None
@@ -837,7 +838,7 @@ class RuleProcessor(object):
         """
         filtered_directory_user_by_user_key = self.filtered_directory_user_by_user_key
 
-        # the way we construct the return vaue is to start with a map from all directory users
+        # the way we construct the return value is to start with a map from all directory users
         # to their groups in this umapi, make a copy, and pop off any adobe users we find.
         # That way, any key/value pairs left in the map are the unmatched adobe users and their groups.
         user_to_group_map = umapi_info.get_desired_groups_by_user_key()

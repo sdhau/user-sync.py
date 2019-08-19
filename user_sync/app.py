@@ -39,7 +39,9 @@ import user_sync.cli
 import user_sync.resource
 import time
 
-import user_sync.sign_sync.app as sign_sync
+import user_sync.connector.umapi
+from user_sync.post_sync.manager import PostSyncManager
+#import user_sync.sign_sync.app as sign_sync
 
 from user_sync.error import AssertionException
 from user_sync.version import __version__ as app_version
@@ -133,11 +135,6 @@ def main():
               help='if membership in mapped groups differs between the enterprise directory and Adobe sides, '
                    'the group membership is updated on the Adobe side so that the memberships in mapped '
                    'groups match those on the enterprise directory side.')
-@click.option('--sign-sync-config',
-              help='*Temporary* CLI param to specify location of Sign sync config file. '
-                   'Enabling this option also enables the Sign sync config.',
-              type=str,
-              metavar='path-to-file')
 @click.option('--strategy',
               help="whether to fetch and sync the Adobe directory against the customer directory "
                    "or just to push each customer user to the Adobe side.  Default is to fetch and sync.",
@@ -164,9 +161,6 @@ def main():
 def sync(**kwargs):
     """Run User Sync [default command]"""
     run_stats = None
-    sign_config_file = kwargs.get('sign_sync_config')
-    if 'sign_sync_config' in kwargs:
-        del(kwargs['sign_sync_config'])
     try:
         # load the config files and start the file logger
         config_loader = user_sync.config.ConfigLoader(kwargs)
@@ -182,7 +176,7 @@ def sync(**kwargs):
         lock = user_sync.lockfile.ProcessLock(lock_path)
         if lock.set_lock():
             try:
-                begin_work(config_loader, sign_config_file)
+                begin_work(config_loader)
             finally:
                 lock.unlock()
         else:
@@ -306,7 +300,7 @@ def log_parameters(argv, config_loader):
     logger.info('-------------------------------------')
 
 
-def begin_work(config_loader, sign_config_file):
+def begin_work(config_loader):
     """
     :type config_loader: user_sync.config.ConfigLoader
     """
@@ -332,6 +326,13 @@ def begin_work(config_loader, sign_config_file):
         directory_connector_module = __import__(directory_connector_module_name, fromlist=[''])
         directory_connector = user_sync.connector.directory.DirectoryConnector(directory_connector_module)
         directory_connector_options = config_loader.get_directory_connector_options(directory_connector.name)
+
+    post_sync_config = config_loader.get_post_sync_options()
+    if post_sync_config:
+        rule_config['extended_attributes'].update(post_sync_config['extended_attributes'])
+        post_sync_manager = PostSyncManager(post_sync_config)
+    else:
+        post_sync_manager = None
 
     config_loader.check_unused_config_keys()
 
@@ -362,17 +363,21 @@ def begin_work(config_loader, sign_config_file):
         logger.warning('No group mapping specified in configuration but --process-groups requested on command line')
     rule_processor.run(directory_groups, directory_connector, umapi_connectors)
 
-    new_adobe_users = set([u.split(',')[1] for u in
-                           list(rule_processor.umapi_info_by_name.values())[0].desired_groups_by_user_key.keys()])
-    existing_adobe_users = set([u.split(',')[1] for u in
-                                list(rule_processor.umapi_info_by_name.values())[0].umapi_user_by_user_key.keys()])
+   #  Post sync section
+    if post_sync_manager:
 
-    if sign_config_file:
-        # Need to sleep the application before performing the sync. This is due to the fact that it takes around
-        # 30-45 secs for the users to populate into sign.
-        logger.info('running Sign sync')
-        time.sleep(60)
-        sign_sync.run(config_loader, existing_adobe_users | new_adobe_users, sign_config_file)
+        # Things will happen
+        # new_adobe_users_keys = set([u.split(',')[1] for u in
+        #                             list(rule_processor.umapi_info_by_name.values())[0].desired_groups_by_user_key.keys()])
+        # existing_adobe_users_keys = set([u.split(',')[1] for u in
+        #                                  list(rule_processor.umapi_info_by_name.values())[0].umapi_user_by_user_key.keys()])
+        #
+        new_adobe_users_full = rule_processor.filtered_directory_user_by_user_key
+        umapi_users_full = rule_processor.umapi_info_by_name[None].umapi_user_by_user_key
+        umapi_users_full.update(new_adobe_users_full)
+
+        post_sync_manager.init_data_store(umapi_users_full)
+        post_sync_manager.run()
 
 if __name__ == '__main__':
     main()
