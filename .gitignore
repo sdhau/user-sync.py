@@ -107,3 +107,4 @@ user_sync/resources/*
 user_sync/sign-sync-config/
 
 .DS_Store
+*.swp
