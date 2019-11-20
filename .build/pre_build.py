@@ -6,8 +6,8 @@ def cd():
     os.chdir(os.path.realpath(os.path.join(os.path.dirname(__file__), '..')))
 
 
-def bundle_example_config():
-    examples_dir = os.path.join('examples', 'config files - basic')
+def bundle_example_config(subdir):
+    examples_dir = os.path.join('examples', subdir)
     files = [os.path.join(examples_dir, f) for f in os.listdir(examples_dir) if
              os.path.isfile(os.path.join(examples_dir, f))]
     bundle_dir = os.path.join('user_sync', 'resources', 'examples')
@@ -20,4 +20,5 @@ def bundle_example_config():
 
 if __name__ == '__main__':
     cd()
-    bundle_example_config()
+    bundle_example_config('config files - basic')
+    bundle_example_config('sign')
