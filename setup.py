@@ -60,8 +60,8 @@ setup(name='user-sync',
           'configparser==3.7.4'
       ],
       extras_require={
-          ':python_version<"3" and (sys_platform=="linux" or sys_platform=="linux2")':[
-              'more-itertools==4.3.0'
+          ':python_version<"3"':[
+              'zipp==1.1.0',
           ],
           ':sys_platform=="linux" or sys_platform=="linux2"': [
               'secretstorage',
