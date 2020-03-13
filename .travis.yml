@@ -43,3 +43,4 @@ deploy:
     tags: true
     repo: adobe-apiplatform/user-sync.py
     all_branches: true
+    
